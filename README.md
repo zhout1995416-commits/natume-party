@@ -11,12 +11,25 @@ natume.party 个人网站：一个《我的世界》风格的方块小世界。�
 - 天气：晴 / 雨（冬天变成雪）
 - 昼夜：默认跟随现实时间，也可以拖时间条；夜里屋里亮灯、有星星和萤火虫
 - 点枣树会摇一摇、掉枣子，点地上的枣子能捡起来计数（存在浏览器本地）
-- 点屋门进屋，看个人介绍卡片
+- 点屋门进屋：关于我 / 作品 / 日记；点信箱看联系方式，点路牌看作品，点河上的纸船看最新日记
+- 每个页面都有自己的链接，可以直接分享，比如 `https://natume.party/#/diary/2026-10-07-river-hut`
 - 右上角打开环境声音：流水、雨声、虫鸣、鸟叫，全部实时合成，默认静音
+
+## 改内容、写日记
+
+内容都在 `public/content/`，用 Markdown 写，改完推送到 `main` 就会上线：
+
+- `about.md`：关于我（含联系方式）
+- `works.md`：作品
+- `diary/`：日记。新增一篇：放一个 `YYYY-MM-DD-标题.md` 文件，再在 `diary/index.json` 里加一行 `{ "slug": "文件名去掉 .md", "title": "标题", "date": "YYYY-MM-DD" }`。最新的一篇会出现在纸船上。
+
+支持的 Markdown：标题、段落、列表、引用、分隔线、代码、粗体/斜体、链接、图片。
 
 ## 网址参数（调试用）
 
-`?season=spring|summer|autumn|winter&weather=sunny|rain&hour=0-24&rotate=0`
+`?season=spring|summer|autumn|winter&weather=sunny|rain&hour=0-24&rotate=0&quality=low&ui=0`
+
+画质会自动调整：帧率持续低于 30 时先关阴影，再降分辨率。`quality=low` 直接用最低画质；`ui=0` 隐藏界面（生成分享图用）。
 
 ## 文件
 
@@ -24,5 +37,7 @@ natume.party 个人网站：一个《我的世界》风格的方块小世界。�
 - `public/js/world.js`：地形生成、房屋与树、方块网格（面剔除 + 环境光遮蔽）、季节配色
 - `public/js/main.js`：场景、光照与昼夜、天气、交互、动画循环
 - `public/js/audio.js`：WebAudio 环境声音
+- `public/js/hut.js`：小屋内容、Markdown 渲染、`#/` 路由
+- `public/og.jpg`、`public/apple-touch-icon.png`：分享预览图和手机桌面图标
 - `public/vendor/`：three.js 0.186.1（MIT，见 `three-LICENSE.txt`），已压缩
 - `wrangler.jsonc`：Cloudflare 部署配置

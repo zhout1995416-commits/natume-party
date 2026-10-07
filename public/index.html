@@ -6,7 +6,21 @@
   <title>natume.party</title>
   <meta name="description" content="小河边的茅草屋和一棵枣树。一个可以四处转转的方块小世界。">
   <meta name="theme-color" content="#4f9be0">
+  <link rel="canonical" href="https://natume.party/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="natume.party">
+  <meta property="og:url" content="https://natume.party/">
+  <meta property="og:title" content="natume.party · 小河边的枣树">
+  <meta property="og:description" content="小河边的茅草屋和一棵枣树。一个可以四处转转的方块小世界：四季、晴雨、昼夜都会变，还能摇枣子。">
+  <meta property="og:image" content="https://natume.party/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="方块风格的小河、茅草屋和枣树，秋天的傍晚">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="natume.party · 小河边的枣树">
+  <meta name="twitter:image" content="https://natume.party/og.jpg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/style.css">
   <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
 </head>
@@ -32,6 +46,10 @@
   <div id="hint"></div>
   <div id="toast" role="status" aria-live="polite"></div>
 
+  <button id="panel-toggle" class="pill hud" aria-expanded="false" aria-controls="panel">
+    <span id="panel-summary">秋 · 晴 · 12:00</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <nav id="panel" class="hud" aria-label="场景设置">
     <div class="group" role="group" aria-label="季节">
       <span class="label">季节</span>
@@ -53,17 +71,19 @@
     </div>
   </nav>
 
-  <dialog id="card" aria-labelledby="card-title">
+  <dialog id="card" aria-label="小屋">
     <div class="card-body">
-      <h2 id="card-title">欢迎来到小屋</h2>
-      <p>你好，我是 Natume。</p>
-      <p>这里还在慢慢布置，以后会放上我的介绍、作品和日记。先在河边坐一会儿，摇摇枣树吧。</p>
-      <ul class="links">
-        <li><a href="https://github.com/zhout1995416-commits" target="_blank" rel="noopener">GitHub</a></li>
-      </ul>
+      <nav class="tabs" role="tablist" aria-label="小屋里的内容">
+        <button role="tab" data-tab="about" aria-selected="true">关于我</button>
+        <button role="tab" data-tab="works" aria-selected="false">作品</button>
+        <button role="tab" data-tab="diary" aria-selected="false">日记</button>
+      </nav>
+      <article id="card-content" class="md" role="tabpanel" tabindex="0"></article>
       <button id="card-close" class="primary" autofocus>回到河边</button>
     </div>
   </dialog>
+
+  <noscript><p class="noscript">这个小世界需要打开 JavaScript 才能看到。</p></noscript>
 
   <script type="module" src="/js/main.js"></script>
 </body>

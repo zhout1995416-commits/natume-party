@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import {
-  generateWorld, buildMesh, filters, makeAtlas, TILE_ID, TREE, HUT, fbm, smoothstep, hash3,
+  generateWorld, buildMesh, filters, makeAtlas, TILE_ID, TREE, fbm, smoothstep, hash3, riverZ,
 } from './world.js';
 import { Ambience } from './audio.js';
+import { initHut } from './hut.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -11,6 +12,7 @@ const params = new URLSearchParams(location.search);
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (params.get('ui') === '0') document.body.classList.add('no-ui');
 
 const seasonByMonth = (m) => (m >= 2 && m <= 4 ? 'spring' : m >= 5 && m <= 7 ? 'summer' : m >= 8 && m <= 10 ? 'autumn' : 'winter');
 const state = {
@@ -255,6 +257,81 @@ scene.add(porchLight);
   scene.add(postMesh);
 }
 
+
+// ---------- 门外的小物件：信箱、路牌、纸船 ----------
+const groundY = (x, z) => Math.max(0, W.getH(Math.round(x), Math.round(z))) + 0.5;
+const lamb = (color, map = null) => new THREE.MeshLambertMaterial({ color, map });
+function block(w, h, d, mat, x, y, z, parent) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.castShadow = m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+const logTex = tileTexture(TILE_ID.LOG);
+const hitBox = (w, h, d, kind) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial());
+  m.visible = false;
+  m.userData.kind = kind;
+  return m;
+};
+
+const MAILBOX = { x: -11.7, z: -4.3 };
+const mailbox = new THREE.Group();
+mailbox.position.set(MAILBOX.x, groundY(MAILBOX.x, MAILBOX.z), MAILBOX.z);
+block(0.18, 1.15, 0.18, lamb(0x6b4a2e, logTex), 0, 0.58, 0, mailbox);
+block(0.58, 0.46, 0.82, lamb(0xb8302a), 0, 1.36, 0, mailbox);
+block(0.62, 0.12, 0.86, lamb(0x8f1e18), 0, 1.64, 0, mailbox);
+block(0.04, 0.26, 0.34, lamb(0x3a1a12), 0.3, 1.34, 0, mailbox);
+const mailFlag = block(0.06, 0.36, 0.1, lamb(0xffd36b), 0.32, 1.52, 0.32, mailbox);
+const mailHit = hitBox(1.5, 2.4, 1.7, 'mail');
+mailHit.position.y = 1.1;
+mailbox.add(mailHit);
+scene.add(mailbox);
+
+function signTexture(text) {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 64;
+  const g = cv.getContext('2d');
+  g.drawImage(plankTex.image, 0, 0, 256, 64);
+  g.fillStyle = 'rgba(160, 110, 60, 0.55)';
+  g.fillRect(0, 0, 256, 64);
+  g.fillStyle = '#3a2412';
+  g.font = 'bold 34px "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 128, 34);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const SIGN = { x: -11.8, z: 6.4 };
+const signpost = new THREE.Group();
+signpost.position.set(SIGN.x, groundY(SIGN.x, SIGN.z), SIGN.z);
+block(0.2, 2.5, 0.2, lamb(0x6b4a2e, logTex), 0, 1.25, 0, signpost);
+const board1 = block(1.7, 0.42, 0.1, new THREE.MeshLambertMaterial({ map: signTexture('作品 →') }), 0.4, 2.1, 0.12, signpost);
+board1.rotation.y = 0.5;
+const board2 = block(1.7, 0.42, 0.1, new THREE.MeshLambertMaterial({ map: signTexture('← 小屋') }), -0.3, 1.55, 0.12, signpost);
+board2.rotation.y = -0.35;
+const signHit = hitBox(2.6, 3, 1.6, 'sign');
+signHit.position.y = 1.5;
+signpost.add(signHit);
+scene.add(signpost);
+
+const boat = new THREE.Group();
+const paper = lamb(0xf7f3e8);
+block(1.0, 0.14, 0.42, paper, 0, 0, 0, boat);
+block(0.7, 0.14, 0.3, paper, 0, -0.1, 0, boat);
+block(0.16, 0.12, 0.42, paper, 0.56, 0.1, 0, boat);
+block(0.16, 0.12, 0.42, paper, -0.56, 0.1, 0, boat);
+block(0.5, 0.36, 0.06, paper, 0, 0.24, 0, boat);
+block(0.22, 0.16, 0.07, lamb(0xd8cdb4), 0, 0.5, 0, boat);
+const boatHit = hitBox(2.4, 1.8, 2.4, 'boat');
+boat.add(boatHit);
+scene.add(boat);
+const BOAT_X0 = -24, BOAT_X1 = 22;
+let boatX = -12;
+
 // ---------- 小花与芦苇 ----------
 const flowerOrder = W.groundFlowers;
 const stemMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), new THREE.MeshLambertMaterial({ color: 0x4f8a32 }), flowerOrder.length);
@@ -447,6 +524,8 @@ treeHit.position.set(TREE.x, 4.8, TREE.z);
 const doorHit = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.6, 1.4), hitMat);
 doorHit.position.set(W.door.x, 1.6, W.door.z + 0.6);
 treeHit.visible = doorHit.visible = false;
+treeHit.userData.kind = 'tree';
+doorHit.userData.kind = 'door';
 scene.add(treeHit, doorHit);
 
 // ---------- 季节 ----------
@@ -592,7 +671,7 @@ function toast(msg) {
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
 }
 const hintEl = $('#hint');
-hintEl.textContent = isTouch ? '单指拖动旋转 · 双指缩放 · 点点枣树和屋门' : '拖动旋转 · 滚轮缩放 · 点点枣树和屋门';
+hintEl.textContent = isTouch ? '单指旋转 · 双指缩放 · 点点枣树、屋门、信箱和纸船' : '拖动旋转 · 滚轮缩放 · 点点枣树、屋门、信箱和纸船';
 let hintTimer = setTimeout(hideHint, 9000);
 function hideHint() { hintEl.classList.add('hide'); clearTimeout(hintTimer); }
 
@@ -610,8 +689,21 @@ $('#sound').addEventListener('click', async (e) => {
 
 const card = $('#card');
 let doorTarget = 0;
-card.addEventListener('close', () => { doorTarget = 0; });
+const hut = initHut({ onClose: () => { doorTarget = 0; } });
 $('#card-close').addEventListener('click', () => card.close());
+
+// 手机上控制面板默认收起
+const panel = $('#panel'), panelToggle = $('#panel-toggle'), summaryEl = $('#panel-summary');
+const small = matchMedia('(max-width: 640px)');
+function setPanel(open) {
+  panel.classList.toggle('collapsed', !open);
+  panelToggle.setAttribute('aria-expanded', String(open));
+}
+setPanel(!small.matches);
+small.addEventListener('change', (e) => setPanel(!e.matches));
+panelToggle.addEventListener('click', () => { setPanel(panel.classList.contains('collapsed')); hideHint(); });
+const SEASON_CN = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
+const summary = () => `${SEASON_CN[state.season]} · ${state.rain ? (state.season === 'winter' ? '雪' : '雨') : '晴'} · ${fmt(state.hour)}`;
 
 function bumpCounter() {
   try { localStorage.setItem('natume.jujubes', String(count)); } catch { /* 忽略 */ }
@@ -626,7 +718,7 @@ function bumpCounter() {
 // ---------- 点击 ----------
 const ray = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
-let shake = 0, toldPickup = false;
+let shake = 0, toldPickup = false, mailWiggle = 0;
 function setRay(cx, cy) {
   const r = renderer.domElement.getBoundingClientRect();
   ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
@@ -636,9 +728,9 @@ function pickKind(cx, cy) {
   setRay(cx, cy);
   const fh = ray.intersectObjects(fallen.filter((f) => !f.collecting).map((f) => f.hit), false);
   if (fh.length) return { kind: 'fruit', f: fh[0].object.userData.fallen };
-  const h = ray.intersectObjects([treeHit, doorHit], false);
+  const h = ray.intersectObjects([treeHit, doorHit, mailHit, signHit, boatHit], false);
   if (!h.length) return null;
-  return { kind: h[0].object === treeHit ? 'tree' : 'door' };
+  return { kind: h[0].object.userData.kind };
 }
 function onTap(cx, cy) {
   const p = pickKind(cx, cy);
@@ -671,7 +763,19 @@ function onTap(cx, cy) {
   } else if (p.kind === 'door') {
     audio.knock();
     doorTarget = 1;
-    setTimeout(() => { if (!card.open) card.showModal(); }, 420);
+    setTimeout(() => { if (!card.open) hut.open('about'); }, 420);
+  } else if (p.kind === 'mail') {
+    audio.knock();
+    mailWiggle = 1;
+    toast('信箱里放着联系方式');
+    setTimeout(() => hut.open('about'), 300);
+  } else if (p.kind === 'sign') {
+    audio.knock();
+    hut.open('works');
+  } else if (p.kind === 'boat') {
+    audio.pop();
+    toast('纸船上写着一篇日记');
+    hut.latestDiary().then((post) => hut.open('diary', post ? post.slug : null));
   }
 }
 let down = null;
@@ -730,9 +834,40 @@ timer.connect(document);
 let time = 0, regrowTimer = 0, ambientTimer = 0, cloudOffset = 0, audioTimer = 0;
 const chim = { x: W.chimney.x, y: 9, z: W.chimney.z };
 
+// 自动画质：帧率持续偏低时先关阴影，再降分辨率
+let quality = 2, qFrames = 0, qTime = 0, qWarm = 0;
+function setQuality(q) {
+  quality = q;
+  const shadows = q >= 2;
+  if (renderer.shadowMap.enabled !== shadows) {
+    renderer.shadowMap.enabled = shadows;
+    sun.castShadow = shadows;
+    scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
+  }
+  renderer.setPixelRatio(q >= 1 ? Math.min(devicePixelRatio, isTouch ? 1.75 : 2) : 1);
+  renderer.setSize(innerWidth, innerHeight);
+}
+if (params.get('quality') === 'low') setQuality(0);
+function trackQuality(raw) {
+  qWarm += raw;
+  if (qWarm < 4 || quality === 0) return;
+  qFrames++; qTime += raw;
+  if (qTime >= 4) {
+    if (qFrames / qTime < 30) setQuality(quality - 1);
+    qFrames = 0; qTime = 0;
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  renderer.setAnimationLoop(document.hidden ? null : frame);
+  qWarm = 0; qFrames = 0; qTime = 0;
+});
+
+let summaryTimer = 0;
 function frame() {
   timer.update();
-  const dt = Math.min(timer.getDelta(), 0.05);
+  const raw = timer.getDelta();
+  trackQuality(raw);
+  const dt = Math.min(raw, 0.05);
   time += dt;
   if (state.realtime) {
     const now = new Date();
@@ -740,6 +875,8 @@ function frame() {
   }
   if (document.activeElement !== timeEl) timeEl.value = state.hour.toFixed(2);
   clockEl.textContent = fmt(state.hour);
+  summaryTimer += dt;
+  if (summaryTimer > 0.5) { summaryTimer = 0; summaryEl.textContent = summary(); }
   realBtn.setAttribute('aria-pressed', String(state.realtime));
   updateSky(state.hour);
   skyGroup.position.copy(camera.position);
@@ -761,6 +898,23 @@ function frame() {
 
   // 水流
   if (state.season !== 'winter') waterTex.offset.x -= dt * 0.22;
+
+  // 纸船顺水漂，冬天冻在冰面上
+  if (state.season !== 'winter') {
+    boatX += dt * (state.rain ? 1.3 : 0.8);
+    if (boatX > BOAT_X1) boatX = BOAT_X0;
+  }
+  {
+    const z = riverZ(boatX), dz = riverZ(boatX + 0.5) - z;
+    const bob = state.season === 'winter' ? 0 : Math.sin(time * 2.1) * (state.rain ? 0.06 : 0.03);
+    boat.position.set(boatX, 0.36 + bob, z);
+    boat.rotation.set(0, -Math.atan2(dz, 0.5), state.season === 'winter' ? 0 : Math.sin(time * 1.7) * 0.06);
+    const edge = Math.min(boatX - BOAT_X0, BOAT_X1 - boatX);
+    boat.scale.setScalar(smoothstep(0, 2, edge));
+  }
+  // 信箱小旗
+  mailWiggle = Math.max(0, mailWiggle - dt * 1.5);
+  mailFlag.rotation.x = Math.sin(time * 18) * 0.35 * mailWiggle;
 
   // 炊烟
   smoke.forEach((m, i) => {
@@ -909,6 +1063,12 @@ applyWeather();
 updateSky(state.hour);
 renderer.setAnimationLoop(frame);
 $('#loading').classList.add('hide');
+summaryEl.textContent = summary();
+if (hut.initial) {
+  doorTarget = 1;
+  controls.autoRotate = false;
+  hut.open(hut.initial.tab, hut.initial.slug);
+}
 
 // 方便调试：在控制台查看
 window.__natume = {
@@ -918,4 +1078,6 @@ window.__natume = {
     return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight];
   },
   fallen: () => fallen.map((f) => [f.m.position.x, f.m.position.y, f.m.position.z, f.rest]),
+  props: () => ({ mail: mailbox.position.toArray(), sign: signpost.position.toArray(), boat: boat.position.toArray() }),
+  quality: () => quality,
 };

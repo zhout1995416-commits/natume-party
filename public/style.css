@@ -108,26 +108,57 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* 小屋里的卡片 */
 dialog {
   border: none; padding: 0; background: transparent; color: var(--ink);
-  max-width: min(420px, calc(100vw - 2 * var(--gap))); width: 100%;
+  max-width: min(520px, calc(100vw - 2 * var(--gap))); width: 100%;
 }
 dialog::backdrop { background: rgba(10, 14, 24, .45); backdrop-filter: blur(3px); }
 dialog[open] { animation: pop .28s ease; }
 @keyframes pop { from { transform: translateY(12px) scale(.97); opacity: 0; } }
 .card-body {
-  background: var(--paper); border-radius: 6px; padding: 24px 24px 20px; user-select: text;
+  background: var(--paper); border-radius: 6px; padding: 22px 22px 18px; user-select: text;
   border: 4px solid #6b4a2e; box-shadow: 0 0 0 4px #3e2a19, 0 18px 40px rgba(0, 0, 0, .35);
   background-image: repeating-linear-gradient(0deg, transparent 0 15px, rgba(107, 74, 46, .06) 15px 16px);
 }
-.card-body h2 { margin: 0 0 10px; font-size: 20px; }
-.card-body p { margin: 0 0 10px; line-height: 1.7; }
-.links { list-style: none; padding: 0; margin: 14px 0 18px; display: flex; gap: 12px; flex-wrap: wrap; }
-.links a { color: #8a3f1c; font-weight: 600; text-underline-offset: 3px; }
+.tabs { display: flex; gap: 6px; margin: -4px 0 14px; }
+.tabs button {
+  flex: 1; height: 38px; border: 2px solid #6b4a2e; border-radius: 4px; background: #efe4cc; color: var(--ink);
+  font-weight: 700; letter-spacing: .06em; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .12);
+}
+.tabs button[aria-selected="true"] { background: #6b4a2e; color: #fbf6ea; box-shadow: none; }
+.md {
+  max-height: min(56vh, 520px); overflow-y: auto; overscroll-behavior: contain; margin: 0 -6px 16px; padding: 0 6px;
+  line-height: 1.75; outline: none;
+}
+.md[aria-busy="true"] { opacity: .5; }
+.md h2 { margin: 4px 0 10px; font-size: 20px; }
+.md h3 { margin: 18px 0 6px; font-size: 16px; }
+.md h4 { margin: 14px 0 4px; font-size: 15px; }
+.md p, .md ul, .md ol, .md blockquote { margin: 0 0 10px; }
+.md ul, .md ol { padding-left: 1.3em; }
+.md blockquote { padding: 6px 12px; border-left: 4px solid #c9a35a; background: rgba(201, 163, 90, .12); }
+.md code { padding: 1px 5px; border-radius: 3px; background: rgba(107, 74, 46, .12); font-size: .9em; word-break: break-all; }
+.md pre { padding: 10px 12px; overflow-x: auto; background: rgba(107, 74, 46, .1); border-radius: 4px; }
+.md pre code { padding: 0; background: none; }
+.md img { max-width: 100%; border-radius: 4px; }
+.md hr { border: none; border-top: 2px dashed rgba(107, 74, 46, .3); margin: 14px 0; }
+.md a { color: #8a3f1c; font-weight: 600; text-underline-offset: 3px; }
+.md .date { color: #8b7a62; font-size: 13px; font-variant-numeric: tabular-nums; }
+.md .back { margin-bottom: 4px; font-size: 14px; }
+.posts { list-style: none; padding: 0 !important; }
+.posts li + li { border-top: 1px dashed rgba(107, 74, 46, .25); }
+.posts a { display: flex; gap: 12px; align-items: baseline; padding: 10px 2px; text-decoration: none; color: var(--ink); }
+.posts a:hover .title { text-decoration: underline; }
+.posts .title { font-weight: 600; }
 .primary {
   display: block; width: 100%; height: 44px; border: none; border-radius: 4px;
   background: #5d9a3c; color: #fff; font-weight: 700; letter-spacing: .1em;
   box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .22), inset 0 2px 0 rgba(255, 255, 255, .25);
 }
 .primary:active { transform: translateY(1px); }
+
+
+#panel-toggle { display: none; }
+.noscript { position: fixed; inset: 0; display: grid; place-items: center; margin: 0; color: var(--fg); }
+body.no-ui .hud, body.no-ui #hint, body.no-ui #toast, body.no-ui #panel-toggle { display: none !important; }
 
 @media (max-width: 640px) {
   :root { --gap: 12px; }
@@ -142,7 +173,17 @@ dialog[open] { animation: pop .28s ease; }
   .time input { flex: 1; width: auto; min-width: 0; }
   .time button { flex: 0 0 auto; }
   .label { width: 30px; flex: 0 0 auto; }
-  #hint { bottom: calc(var(--gap) + env(safe-area-inset-bottom) + 138px); font-size: 12px; }
+  #panel-toggle {
+    display: inline-flex; left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--gap) + env(safe-area-inset-bottom)); gap: 6px; font-variant-numeric: tabular-nums;
+  }
+  #panel-toggle svg { width: 16px; height: 16px; transition: transform .2s; }
+  #panel-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  #panel { bottom: calc(var(--gap) + env(safe-area-inset-bottom) + 46px); }
+  #panel.collapsed { display: none; }
+  #hint { bottom: calc(var(--gap) + env(safe-area-inset-bottom) + 52px); font-size: 12px; }
+  .tabs button { height: 36px; letter-spacing: .02em; }
+  .card-body { padding: 18px 16px 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
