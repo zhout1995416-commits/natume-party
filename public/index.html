@@ -2,13 +2,69 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>natume.party</title>
-  <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f1e8; color: #3a3a32; font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; }
-  </style>
+  <meta name="description" content="小河边的茅草屋和一棵枣树。一个可以四处转转的方块小世界。">
+  <meta name="theme-color" content="#4f9be0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
 </head>
 <body>
-  <p>natume.party · 建设中</p>
+  <div id="app"></div>
+  <div id="loading">正在搭建小世界…</div>
+
+  <header class="hud hud-tl">
+    <h1>natume.party</h1>
+    <p>小河 · 茅草屋 · 枣树</p>
+  </header>
+
+  <div class="hud hud-tr">
+    <div id="counter" class="pill" title="捡到的枣子">
+      <i class="jujube" aria-hidden="true"></i><span class="sr">枣子</span><span id="count">0</span>
+    </div>
+    <button id="sound" class="pill icon" aria-pressed="false" aria-label="环境声音">
+      <svg class="off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg class="on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div id="hint"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <nav id="panel" class="hud" aria-label="场景设置">
+    <div class="group" role="group" aria-label="季节">
+      <span class="label">季节</span>
+      <button data-season="spring">春</button>
+      <button data-season="summer">夏</button>
+      <button data-season="autumn">秋</button>
+      <button data-season="winter">冬</button>
+    </div>
+    <div class="group" role="group" aria-label="天气">
+      <span class="label">天气</span>
+      <button data-weather="sunny">晴</button>
+      <button data-weather="rain" id="rain-btn">雨</button>
+    </div>
+    <div class="group time" role="group" aria-label="时间">
+      <span class="label">时间</span>
+      <input id="time" type="range" min="0" max="23.99" step="0.05" aria-label="一天中的时间">
+      <output id="clock">12:00</output>
+      <button id="realtime" aria-pressed="true" title="跟随现实时间">实时</button>
+    </div>
+  </nav>
+
+  <dialog id="card" aria-labelledby="card-title">
+    <div class="card-body">
+      <h2 id="card-title">欢迎来到小屋</h2>
+      <p>你好，我是 Natume。</p>
+      <p>这里还在慢慢布置，以后会放上我的介绍、作品和日记。先在河边坐一会儿，摇摇枣树吧。</p>
+      <ul class="links">
+        <li><a href="https://github.com/zhout1995416-commits" target="_blank" rel="noopener">GitHub</a></li>
+      </ul>
+      <button id="card-close" class="primary" autofocus>回到河边</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="/js/main.js"></script>
 </body>
 </html>
