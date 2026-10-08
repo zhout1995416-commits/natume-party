@@ -260,6 +260,26 @@ export function generateWorld() {
     if (Math.hypot(x - tb.x, z - tb.z) < 2) continue;
     groundFlowers.push({ x, z, c: rng(), s: 0.7 + rng() * 0.5, v: rng() });
   }
+  // ---- 草丛（交叉草叶）：山谷里的草方块上，按噪声成片分布 ----
+  const tufts = [];
+  for (let x = -32; x <= 32; x++) {
+    for (let z = -32; z <= 32; z++) {
+      const h = getH(x, z);
+      if (h < 0 || h > 8) continue;
+      if (grid.get(x, h, z) !== T.GRASS || grid.get(x, h + 1, z)) continue;
+      if (x >= HUT.x0 && x <= HUT.x1 && z >= HUT.z0 && z <= HUT.z1) continue;
+      if (Math.abs(z - riverZ(x)) < RIVER_HALF + 1.2) continue;
+      const n = fbm(x * 0.15 + 3, z * 0.15 - 8);
+      const p = 0.1 + Math.max(0, n - 0.42) * 1.6;
+      const k = rng() < p ? (rng() < 0.45 ? 2 : 1) : 0;
+      for (let i = 0; i < k; i++) {
+        tufts.push({ x: x + (rng() - 0.5) * 0.8, y: h + 0.5, z: z + (rng() - 0.5) * 0.8, s: 0.55 + rng() * 0.6, r: rng() * Math.PI, v: rng() });
+      }
+    }
+  }
+  // 打乱顺序：季节里只显示前一部分时，留下的草也是均匀分布的
+  for (let i = tufts.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [tufts[i], tufts[j]] = [tufts[j], tufts[i]]; }
+
   const reeds = [];
   for (let x = -26; x <= 26; x++) {
     for (const side of [-1, 1]) {
@@ -289,7 +309,7 @@ export function generateWorld() {
   const topAt = (x, z) => (x < -O || x > O || z < -O || z > O) ? -99 : tops[hIdx(x, z)];
 
   return {
-    grid, getH, topAt, windows, chimney, fruitSpots, flowerSpots, groundFlowers, reeds, bridge,
+    grid, getH, topAt, windows, chimney, fruitSpots, flowerSpots, groundFlowers, tufts, reeds, bridge,
     door: { x: HUT.doorX, z: HUT.z1 },
   };
 }
