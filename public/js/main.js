@@ -130,7 +130,8 @@ const water = buildMesh(W.grid, filters.water);
   const uv = water.geometry.attributes.uv.array;
   for (let i = 0; i < uv.length; i += 2) uv[i] *= 16;
 }
-const waterMat = new THREE.MeshLambertMaterial({ map: waterTex, color: 0x3d93cf, transparent: true, opacity: 0.82 });
+// Phong 材质让水面在阳光（夜里是月光）下有反光
+const waterMat = new THREE.MeshPhongMaterial({ map: waterTex, color: 0x3d93cf, transparent: true, opacity: 0.82, specular: 0xa8c4d6, shininess: 90 });
 const waterMesh = new THREE.Mesh(water.geometry, waterMat);
 waterMesh.receiveShadow = true;
 waterMesh.renderOrder = 1;
@@ -331,6 +332,72 @@ boat.add(boatHit);
 scene.add(boat);
 const BOAT_X0 = -24, BOAT_X1 = 22;
 let boatX = -12;
+
+
+// ---------- 草丛：交叉草叶，跟着风轻轻摆 ----------
+const grassTex = (() => {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 16;
+  const g = cv.getContext('2d');
+  const blades = [[1, 9], [3, 13], [5, 7], [7, 15], [9, 10], [11, 14], [13, 8], [14, 12]];
+  for (const [bx, bh] of blades) {
+    for (let k = 0; k < bh; k++) {
+      const y = 15 - k;
+      const v = Math.round(150 + (k / bh) * 100 + hash3(bx, y, 9) * 20);
+      g.fillStyle = `rgb(${v},${v},${v})`;
+      g.fillRect(bx + (k > bh * 0.7 && bx % 2 ? 1 : 0), y, 1, 1);
+    }
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  return t;
+})();
+function crossGeometry() {
+  const parts = [Math.PI / 4, -Math.PI / 4].map((a) => new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateY(a));
+  const geo = new THREE.BufferGeometry();
+  for (const name of ['position', 'uv']) {
+    const arrays = parts.map((p) => p.attributes[name].array);
+    const merged = new Float32Array(arrays.reduce((n, a) => n + a.length, 0));
+    let o = 0;
+    for (const a of arrays) { merged.set(a, o); o += a.length; }
+    geo.setAttribute(name, new THREE.BufferAttribute(merged, name === 'uv' ? 2 : 3));
+  }
+  // 法线朝上，草叶的明暗跟地面一致
+  const n = new Float32Array(geo.attributes.position.count * 3);
+  for (let i = 1; i < n.length; i += 3) n[i] = 1;
+  geo.setAttribute('normal', new THREE.BufferAttribute(n, 3));
+  const idx = parts[0].index.array;
+  const count = parts[0].attributes.position.count;
+  geo.setIndex([...idx, ...Array.from(idx, (i) => i + count)]);
+  return geo;
+}
+const grassWind = { uTime: { value: 0 }, uWind: { value: 1 } };
+const grassMat = new THREE.MeshLambertMaterial({ map: grassTex, alphaTest: 0.5, side: THREE.DoubleSide });
+grassMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = grassWind.uTime;
+  shader.uniforms.uWind = grassWind.uWind;
+  shader.vertexShader = 'uniform float uTime;\nuniform float uWind;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    float sway = uv.y * uv.y;
+    vec4 root = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    transformed.x += sin(uTime * 1.9 + root.x * 0.6 + root.z * 0.4) * 0.12 * uWind * sway;
+    transformed.z += cos(uTime * 1.4 + root.x * 0.3 - root.z * 0.5) * 0.08 * uWind * sway;`);
+  // 双面材质默认会把背面法线翻向下方，草叶背面就成了黑色；这里两面都用朝上的法线
+  shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>',
+    THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''));
+};
+const tuftMesh = new THREE.InstancedMesh(crossGeometry(), grassMat, W.tufts.length);
+W.tufts.forEach((t, i) => {
+  dummy.position.set(t.x, t.y, t.z);
+  dummy.rotation.set(0, t.r, 0);
+  dummy.scale.set(t.s, t.s * 0.85, t.s);
+  dummy.updateMatrix();
+  tuftMesh.setMatrixAt(i, dummy.matrix);
+});
+tuftMesh.receiveShadow = true;
+scene.add(tuftMesh);
 
 // ---------- 小花与芦苇 ----------
 const flowerOrder = W.groundFlowers;
@@ -541,6 +608,8 @@ const FLOWER = {
 };
 const FLOWER_SHOW = { spring: 1, summer: 0.75, autumn: 0.35, winter: 0 };
 const REED = { spring: '#6f9e45', summer: '#5f8f3a', autumn: '#b59a52', winter: '#c9b98a' };
+const TUFT = { spring: '#8edc62', summer: '#62b03e', autumn: '#b8ae55', winter: '#cbbd8e' };
+const TUFT_SHOW = { spring: 1, summer: 1, autumn: 0.85, winter: 0.2 };
 const WATER_COL = { spring: '#4a9fd8', summer: '#3d93cf', autumn: '#3b84bd', winter: '#d3e9f2' };
 
 function applySeason() {
@@ -565,6 +634,14 @@ function applySeason() {
   const shown = Math.round(flowerOrder.length * FLOWER_SHOW[s]);
   petalMesh.count = stemMesh.count = shown;
   W.reeds.forEach((_, i) => reedMesh.setColorAt(i, tmpColor.set(REED[s])));
+  W.tufts.forEach((t, i) => {
+    tmpColor.set(TUFT[s]).multiplyScalar(0.85 + t.v * 0.3);
+    tuftMesh.setColorAt(i, tmpColor);
+  });
+  tuftMesh.instanceColor.needsUpdate = true;
+  tuftMesh.count = Math.round(W.tufts.length * TUFT_SHOW[s]);
+  waterMat.shininess = s === 'winter' ? 30 : 90;
+  waterMat.specular.set(s === 'winter' ? 0x707880 : 0xa8c4d6);
   reedMesh.instanceColor.needsUpdate = true;
   clearFallen();
   parts.length = 0;
@@ -869,6 +946,8 @@ function frame() {
   trackQuality(raw);
   const dt = Math.min(raw, 0.05);
   time += dt;
+  grassWind.uTime.value = time;
+  grassWind.uWind.value = state.rain ? 2.2 : 1;
   if (state.realtime) {
     const now = new Date();
     state.hour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
